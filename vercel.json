@@ -1,16 +1,13 @@
 {
-    "experimentalServices": {
-        "frontend": {
-            "root": "frontend",
-            "routePrefix": "/",
-            "framework": "vite"
-        },
-        "backend": {
-            "root": "backend",
-            "routePrefix": "/_/backend"
-        }
-    },
-    "rewrites": [
-        { "source": "/api/(.*)", "destination": "/_/backend/api/$1" }
-    ]
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "backend/api/index.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/backend/api/index.js" },
+    { "source": "/(.*)", "destination": "/frontend/dist/index.html" }
+  ]
 }
