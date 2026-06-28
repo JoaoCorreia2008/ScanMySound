@@ -1,0 +1,26 @@
+{
+  "name": "Scan my Sound",
+  "short_name": "ScanMySound",
+  "description": "Deteta a tua emoção e recomenda playlists do Spotify.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060916",
+  "theme_color": "#060916",
+  "lang": "pt",
+  "icons": [
+    {
+      "src": "/app-icon-light.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon-light.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Provider:
+  //   "sqlite"     → dev local (zero-config, file:./dev.db)
+  //   "postgresql" → produção (Vercel + Neon)
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model EmotionHistory {
+  id         String   @id @default(cuid())
+  sessionId  String
+  emotion    String
+  confidence Float    @default(0)
+  source     String   @default("webcam")
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([emotion, createdAt])
+}
+
+model PlaylistRecommendation {
+  id                String   @id @default(cuid())
+  sessionId         String
+  emotion           String
+  query             String
+  spotifyPlaylistId String
+  playlistName      String
+  playlistUrl       String?
+  imageUrl          String?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, spotifyPlaylistId])
+  @@index([sessionId, createdAt])
+}
+
+model Session {
+  id                String    @id @default(cuid())
+  device            String?
+  userAgent         String?
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
+  status            String    @default("ACTIVE")
+  activeEmotion     String?
+  averageConfidence Float     @default(0)
+
+  emotions       EmotionHistory[]
+  recommendations PlaylistRecommendation[]
+
+  @@index([startedAt])
+}

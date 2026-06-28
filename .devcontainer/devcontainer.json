@@ -1,0 +1,27 @@
+{
+  "name": "Scan my Sound",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/postgres-client:1": {}
+  },
+  "postCreateCommand": "bash scripts/codespace-setup.sh",
+  "portsAttributes": {
+    "3001": {
+      "label": "Backend API",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Frontend (Vite)",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "forwardPorts": [3001, 5173],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Prisma.prisma",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}
