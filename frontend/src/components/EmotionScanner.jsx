@@ -41,6 +41,18 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
   const [expressions, setExpressions] = useState({})
   const [scannerReady, setScannerReady] = useState(false)
   const [permissionState, setPermissionState] = useState('unknown')
+  const [isStandalone, setIsStandalone] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const standaloneMQ = window.matchMedia('(display-mode: standalone)')
+    const update = () => setIsStandalone(standaloneMQ.matches || window.navigator.standalone === true)
+    update()
+    if (standaloneMQ.addEventListener) standaloneMQ.addEventListener('change', update)
+    return () => {
+      if (standaloneMQ.removeEventListener) standaloneMQ.removeEventListener('change', update)
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.permissions?.query) {
@@ -275,11 +287,35 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
               {status === 'denied' ? (
                 <>
                   <strong>Câmara bloqueada</strong>
-                  <p>
-                    1. Toca no 🔒 na barra de endereço<br />
-                    2. Permissões → Câmara → <strong>Permitir</strong><br />
-                    3. Volta aqui e clica em "Tentar novamente"
-                  </p>
+                  {isStandalone ? (
+                    <>
+                      <p>
+                        A app instalada no Android não mostra o pedido de câmara.
+                        A forma mais rápida é abrir o site no Chrome (onde o pedido aparece normalmente),
+                        ou permitir manualmente nas definições do site.
+                      </p>
+                      <p style={{ fontSize: '0.85em', opacity: 0.85 }}>
+                        <strong>Opção A (recomendada):</strong> Clica em "Abrir no Chrome" abaixo.<br />
+                        <strong>Opção B:</strong> Vai a Definições de sites → Câmara → Permitir, depois tenta de novo.
+                      </p>
+                      <button
+                        type="button"
+                        className="scanner-cta"
+                        onClick={() => {
+                          window.open(window.location.origin + window.location.pathname, '_blank', 'noreferrer')
+                        }}
+                        style={{ marginTop: 12, width: 'auto', alignSelf: 'center' }}
+                      >
+                        Abrir no Chrome
+                      </button>
+                    </>
+                  ) : (
+                    <p>
+                      1. Toca no 🔒 na barra de endereço<br />
+                      2. Permissões → Câmara → <strong>Permitir</strong><br />
+                      3. Volta aqui e clica em "Tentar novamente"
+                    </p>
+                  )}
                   <button
                     type="button"
                     className="scanner-cta"
