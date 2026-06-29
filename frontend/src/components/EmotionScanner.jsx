@@ -42,7 +42,6 @@ export default function EmotionScanner({ onScan }) {
   const [confidence, setConfidence] = useState(0)
   const [expressions, setExpressions] = useState({})
   const [scannerReady, setScannerReady] = useState(false)
-  const [pendingStream, setPendingStream] = useState(null)
   const [permissionState, setPermissionState] = useState('unknown')
 
   useEffect(() => {
@@ -157,7 +156,6 @@ export default function EmotionScanner({ onScan }) {
       // Guarda a stream — o useEffect abaixo vai ligá-la ao <video>
       // quando o elemento estiver no DOM
       streamRef.current = stream
-      setPendingStream(stream)
 
       try {
         await api.post('/sessions/start', {
@@ -214,13 +212,19 @@ export default function EmotionScanner({ onScan }) {
     }
   }, [performScan, permissionState])
 
-  // Liga o stream ao elemento <video> quando o elemento existe
-  // (resolve o problema de o stream chegar antes do React criar o <video>)
+  // Liga o stream ao elemento <video> quando o streamRef muda
+  // (e o elemento está no DOM porque showCamera é true neste momento)
   useEffect(() => {
-    if (!pendingStream || !videoRef.current) return
+    if (!streamRef.current || !videoRef.current) {
+      console.log('[scanner] useEffect: sem stream ou video ref', { stream: !!streamRef.current, video: !!videoRef.current })
+      return
+    }
 
     const video = videoRef.current
-    video.srcObject = pendingStream
+    const stream = streamRef.current
+
+    console.log('[scanner] A ligar stream ao video')
+    video.srcObject = stream
     video.muted = true
 
     const tryPlay = () => {
@@ -232,9 +236,7 @@ export default function EmotionScanner({ onScan }) {
       })
     }
     tryPlay()
-
-    setPendingStream(null)
-  }, [pendingStream])
+  }, [scannerReady])
 
   useEffect(() => {
     return () => {
@@ -242,7 +244,6 @@ export default function EmotionScanner({ onScan }) {
       if (sessionStartedRef.current) {
         api.patch('/sessions/end').catch(() => null)
       }
-      setPendingStream(null)
     }
   }, [stopScanner])
 
