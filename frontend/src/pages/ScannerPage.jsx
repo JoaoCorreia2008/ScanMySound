@@ -45,6 +45,19 @@ export default function ScannerPage() {
   }, [fetchRecommendations])
 
   const handleScanStart = useCallback(async () => {
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === 'function'
+    ) {
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        probe.getTracks().forEach((t) => t.stop())
+      } catch (err) {
+        console.warn('[scan-intro] getUserMedia bloqueado:', err?.name, err?.message)
+      }
+    }
+
     setScanState('scanning')
     setPlaylists([])
     setCurrentEmotion('neutral')

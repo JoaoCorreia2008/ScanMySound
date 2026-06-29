@@ -40,7 +40,6 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
   const [confidence, setConfidence] = useState(0)
   const [expressions, setExpressions] = useState({})
   const [scannerReady, setScannerReady] = useState(false)
-  const [permissionState, setPermissionState] = useState('unknown')
   const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
@@ -51,29 +50,6 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
     if (standaloneMQ.addEventListener) standaloneMQ.addEventListener('change', update)
     return () => {
       if (standaloneMQ.removeEventListener) standaloneMQ.removeEventListener('change', update)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.permissions?.query) {
-      queueMicrotask(() => setPermissionState('unsupported'))
-      return
-    }
-    let active = true
-    navigator.permissions
-      .query({ name: 'camera' })
-      .then((result) => {
-        if (!active) return
-        setPermissionState(result.state)
-        result.addEventListener('change', () => {
-          if (active) setPermissionState(result.state)
-        })
-      })
-      .catch(() => {
-        if (active) setPermissionState('unsupported')
-      })
-    return () => {
-      active = false
     }
   }, [])
 
@@ -118,11 +94,6 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
   }, [])
 
   const startScanner = useCallback(async () => {
-    if (permissionState === 'denied') {
-      setStatus('denied')
-      return
-    }
-
     if (!navigator?.mediaDevices?.getUserMedia) {
       setStatus('unsupported')
       setError('Este browser não suporta webcam.')
@@ -213,11 +184,8 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
           ? 'A câmara está a ser usada por outra aplicação (Zoom, Teams, etc). Fecha-as e tenta de novo.'
           : `Erro: ${name}. ${message}`
       )
-      if (isDenied) {
-        setPermissionState('denied')
-      }
     }
-  }, [onScan, onScanStart, performScan, permissionState, stopScanner])
+  }, [onScan, onScanStart, performScan, stopScanner])
 
   // Liga o stream ao elemento <video> quando scannerReady fica true
   useEffect(() => {
@@ -289,31 +257,33 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
                   <strong>Câmara bloqueada</strong>
                   {isStandalone ? (
                     <>
-                      <p>
-                        A app instalada no Android não mostra o pedido de câmara.
-                        A forma mais rápida é abrir o site no Chrome (onde o pedido aparece normalmente),
-                        ou permitir manualmente nas definições do site.
+                      <p style={{ fontSize: '0.9em' }}>
+                        A app instalada está a bloquear a câmara.
                       </p>
-                      <p style={{ fontSize: '0.85em', opacity: 0.85 }}>
-                        <strong>Opção A (recomendada):</strong> Clica em "Abrir no Chrome" abaixo.<br />
-                        <strong>Opção B:</strong> Vai a Definições de sites → Câmara → Permitir, depois tenta de novo.
+                      <p style={{ fontSize: '0.82em', opacity: 0.9, textAlign: 'left', lineHeight: 1.5 }}>
+                        <strong>Para permitir:</strong><br />
+                        1. <strong>Definições</strong> → <strong>Aplicações</strong> → <strong>Chrome</strong><br />
+                        2. <strong>Permissões</strong> → <strong>Câmara</strong> → <strong>Permitir</strong><br />
+                        3. Volta e clica <strong>Tentar novamente</strong>
                       </p>
                       <button
                         type="button"
                         className="scanner-cta"
                         onClick={() => {
-                          window.open(window.location.origin + window.location.pathname, '_blank', 'noreferrer')
+                          const url = window.location.origin + window.location.pathname
+                          window.open(url, '_blank', 'noreferrer')
                         }}
-                        style={{ marginTop: 12, width: 'auto', alignSelf: 'center' }}
+                        style={{ marginTop: 8, width: 'auto', alignSelf: 'center' }}
                       >
-                        Abrir no Chrome
+                        Abrir no browser
                       </button>
                     </>
                   ) : (
-                    <p>
-                      1. Toca no 🔒 na barra de endereço<br />
-                      2. Permissões → Câmara → <strong>Permitir</strong><br />
-                      3. Volta aqui e clica em "Tentar novamente"
+                    <p style={{ fontSize: '0.88em', textAlign: 'left', lineHeight: 1.5 }}>
+                      <strong>Para permitir:</strong><br />
+                      1. Toca no <strong>🔒</strong> ao lado do URL<br />
+                      2. <strong>Permissões</strong> → <strong>Câmara</strong> → <strong>Permitir</strong><br />
+                      3. Faz refresh à página
                     </p>
                   )}
                   <button
@@ -323,9 +293,8 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
                       setStatus('idle')
                       setError('')
                       setScannerReady(false)
-                      setPermissionState('prompt')
                     }}
-                    style={{ marginTop: 12, width: 'auto', alignSelf: 'center' }}
+                    style={{ marginTop: 8, width: 'auto', alignSelf: 'center' }}
                   >
                     Tentar novamente
                   </button>
