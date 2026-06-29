@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scan My Sound · Teste de Câmara</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#0a0e1c; color:#fff; padding:24px; line-height:1.6; max-width:560px; margin:0 auto; }
+      h1 { font-size:1.4em; }
+      .card { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:20px; margin:16px 0; }
+      button { background:#4f7cff; color:#fff; border:0; padding:14px 22px; border-radius:12px; font-size:16px; font-weight:600; width:100%; margin-top:12px; }
+      button:active { transform:scale(0.98); }
+      video { width:100%; max-height:300px; background:#000; border-radius:12px; display:block; margin-top:12px; }
+      code { background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:0.9em; }
+      ol { padding-left:20px; }
+      li { margin-bottom:6px; }
+      .ok { color:#6ef3c5; }
+      .err { color:#ff8970; }
+      small { opacity:0.7; }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 Teste de Câmara</h1>
+
+    <div class="card">
+      <p><strong>Secure context:</strong> <span id="ctx">a verificar…</span></p>
+      <p><strong>navigator.mediaDevices:</strong> <span id="md">a verificar…</span></p>
+      <p><strong>getUserMedia:</strong> <span id="gum">a verificar…</span></p>
+    </div>
+
+    <div class="card">
+      <p>Clica no botão abaixo para pedir a câmara. <strong>Um popup do Chrome vai aparecer.</strong></p>
+      <button id="btn">📷 Pedir acesso à câmara</button>
+      <video id="v" autoplay playsinline muted></video>
+    </div>
+
+    <div class="card">
+      <h2>Se não aparecer o popup</h2>
+      <ol>
+        <li>Vai a <code>chrome://settings/content/camera</code></li>
+        <li>Procura <code>scan-my-sound.vercel.app</code> e apaga</li>
+        <li>Volta aqui e clica no botão outra vez</li>
+      </ol>
+      <p><small>Ou abre <a style="color:#4f7cff" href="./camera-reset.html">este link de reset</a> que apaga as permissões automaticamente.</small></p>
+    </div>
+
+    <div class="card">
+      <h2>Resultado</h2>
+      <pre id="log" style="white-space:pre-wrap; font-size:0.85em; background:rgba(0,0,0,0.3); padding:12px; border-radius:8px; min-height:80px;">—</pre>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const log = (msg, type = 'info') => {
+        const el = $('log');
+        const time = new Date().toLocaleTimeString();
+        const color = type === 'err' ? '#ff8970' : type === 'ok' ? '#6ef3c5' : '#fff';
+        el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+      };
+
+      $('ctx').innerHTML = window.isSecureContext ? '<span class="ok">✓ sim</span>' : '<span class="err">✗ não</span>';
+      $('md').innerHTML = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+        ? '<span class="ok">✓ disponível</span>'
+        : '<span class="err">✗ não disponível</span>';
+      $('gum').innerHTML = (typeof navigator.mediaDevices?.getUserMedia === 'function')
+        ? '<span class="ok">✓ função existe</span>'
+        : '<span class="err">✗ função não existe</span>';
+
+      log('Página carregada em ' + window.location.href);
+      log('User agent: ' + navigator.userAgent);
+      log('Secure context: ' + window.isSecureContext);
+
+      $('btn').addEventListener('click', async () => {
+        log('Botão clicado — a pedir getUserMedia…');
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+          log('✓ SUCESSO! Stream obtido com ' + stream.getVideoTracks().length + ' track(s) de vídeo', 'ok');
+          $('v').srcObject = stream;
+        } catch (err) {
+          log('✗ ERRO: ' + err.name + ' — ' + err.message, 'err');
+          if (err.name === 'NotAllowedError') {
+            log('A permissão foi NEGADA. Vai a chrome://settings/content/camera e remove este site.', 'err');
+          } else if (err.name === 'NotFoundError') {
+            log('Nenhuma câmara encontrada no dispositivo.', 'err');
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
