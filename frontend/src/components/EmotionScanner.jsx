@@ -194,7 +194,7 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
       setScannerReady(false)
       setError(
         isDenied
-          ? 'Permissão da câmara foi bloqueada. Abre o cadeado na barra de endereço → Câmara → Permitir.'
+          ? 'Permissão da câmara foi bloqueada. Toca no cadeado (🔒) na barra de endereço → Permissões → Câmara → Permitir. Depois faz refresh.'
           : isNotFound
           ? 'Nenhuma câmara encontrada. Verifica se o dispositivo tem webcam.'
           : isInUse

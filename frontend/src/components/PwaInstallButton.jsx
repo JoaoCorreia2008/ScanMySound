@@ -1,16 +1,104 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { useEffect, useState } from 'react'
 import { usePwaInstall } from '../hooks/usePwaInstall'
 
-export default function PwaInstallButton() {
-  const { installable, promptInstall } = usePwaInstall()
+const STORAGE_KEY = 'scanmysound:pwa-dismissed'
 
-  async function handleClick() {
+function detectPlatform() {
+  if (typeof navigator === 'undefined') return { os: 'unknown', browser: 'unknown' }
+  const ua = navigator.userAgent
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream
+  const isAndroid = /Android/.test(ua)
+  const isChrome = /Chrome/.test(ua) && !/Edg/.test(ua)
+  const isEdge = /Edg/.test(ua)
+  const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !isIOS
+
+  let os = 'desktop'
+  if (isIOS) os = 'ios'
+  else if (isAndroid) os = 'android'
+
+  let browser = 'outro'
+  if (isChrome) browser = 'chrome'
+  else if (isEdge) browser = 'edge'
+  else if (isSafari) browser = 'safari'
+
+  return { os, browser, isIOS, isAndroid, isChrome, isEdge, isSafari }
+}
+
+function InstallInstructions({ onClose, platform }) {
+  const steps = []
+  if (platform.isAndroid && (platform.isChrome || platform.isEdge)) {
+    steps.push('Toca no menu ⋮ (3 pontos) no canto superior direito')
+    steps.push('Escolhe "Instalar app" ou "Adicionar ao ecrã principal"')
+    steps.push('Confirma tocando em "Instalar"')
+  } else if (platform.isIOS && platform.isSafari) {
+    steps.push('Toca no ícone de partilha ⬆️ na barra do Safari')
+    steps.push('Desce e escolhe "Adicionar ao Ecrã Principal"')
+    steps.push('Toca em "Adicionar" no canto superior direito')
+  } else if (platform.isAndroid) {
+    steps.push('Abre o menu do browser (⋮) e procura "Instalar app"')
+    steps.push('Ou vai a Definições → Apps → [browser] → Permissões → Câmara → Permitir')
+  } else {
+    steps.push('Na barra de endereço, clica no ícone de instalação (⬇ ou ⊕)')
+    steps.push('Ou clica no menu ⋮ e escolhe "Instalar Scan my Sound"')
+  }
+
+  return (
+    <motion.div
+      className="pwa-install-card"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 12 }}
+    >
+      <div className="pwa-install-card-head">
+        <div>
+          <p className="micro-label">Instalar app</p>
+          <h3>Instala a app no teu telemóvel</h3>
+        </div>
+        <button type="button" className="pwa-install-close" onClick={onClose} aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+      <ol className="pwa-install-steps">
+        {steps.map((s, i) => (
+          <li key={i}>{s}</li>
+        ))}
+      </ol>
+    </motion.div>
+  )
+}
+
+export default function PwaInstallButton() {
+  const { installable, installed, promptInstall } = usePwaInstall()
+  const platform = detectPlatform()
+  const [showManual, setShowManual] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    queueMicrotask(() => setDismissed(window.localStorage.getItem(STORAGE_KEY) === '1'))
+  }, [])
+
+  const handleClose = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, '1')
+    }
+    setDismissed(true)
+    setShowManual(false)
+  }
+
+  const handleInstall = async () => {
     const ok = await promptInstall()
     if (ok) {
       toast.success('A instalar Scan my Sound…')
+    } else {
+      // Browser blocked the prompt. Show manual instructions.
+      setShowManual(true)
     }
   }
+
+  if (installed || dismissed) return null
 
   return (
     <AnimatePresence>
@@ -19,7 +107,7 @@ export default function PwaInstallButton() {
           key="pwa-install"
           type="button"
           className="pwa-install"
-          onClick={handleClick}
+          onClick={handleInstall}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 8 }}
@@ -31,6 +119,27 @@ export default function PwaInstallButton() {
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
           Instalar app
+        </motion.button>
+      ) : null}
+
+      {showManual ? <InstallInstructions onClose={handleClose} platform={platform} /> : null}
+
+      {!installable && !showManual ? (
+        <motion.button
+          key="pwa-manual"
+          type="button"
+          className="pwa-install"
+          onClick={() => setShowManual(true)}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ duration: 0.25 }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+            <line x1="12" y1="18" x2="12.01" y2="18" />
+          </svg>
+          Como instalar
         </motion.button>
       ) : null}
     </AnimatePresence>
