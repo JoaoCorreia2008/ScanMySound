@@ -1019,6 +1019,10 @@
   display: block;
 }
 
+.scanner-header-spacer {
+  flex: 1;
+}
+
 .scanner-page-main {
   display: flex;
   flex-direction: column;
