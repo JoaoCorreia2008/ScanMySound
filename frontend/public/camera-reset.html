@@ -2,70 +2,173 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scan My Sound · Reset de Permissões</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Scan My Sound · Ativar Câmara</title>
     <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#0a0e1c; color:#fff; padding:24px; line-height:1.6; max-width:560px; margin:0 auto; }
-      h1 { font-size:1.4em; }
-      .card { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:20px; margin:16px 0; }
-      button { background:#4f7cff; color:#fff; border:0; padding:14px 22px; border-radius:12px; font-size:16px; font-weight:600; width:100%; margin-top:12px; }
-      button.danger { background:#ff5070; }
-      code { background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; }
-      .ok { color:#6ef3c5; }
-      .err { color:#ff8970; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #060916;
+        color: #f4f7ff;
+        padding: 24px 20px;
+        line-height: 1.55;
+        max-width: 560px;
+        margin: 0 auto;
+        min-height: 100vh;
+      }
+      h1 { font-size: 1.5em; margin: 0 0 8px; }
+      .sub { opacity: 0.75; font-size: 0.95em; margin: 0 0 20px; }
+      .card {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        padding: 18px 18px 20px;
+        margin: 14px 0;
+      }
+      .step { display: flex; align-items: flex-start; gap: 12px; margin: 12px 0; }
+      .num {
+        background: #4f7cff;
+        color: #fff;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+        font-size: 0.9em;
+      }
+      .step-body { flex: 1; font-size: 0.95em; }
+      .step-body strong { color: #6ef3c5; }
+      a.btn, button.btn {
+        display: block;
+        text-align: center;
+        background: #4f7cff;
+        color: #fff;
+        border: 0;
+        padding: 16px 22px;
+        border-radius: 14px;
+        font-size: 16px;
+        font-weight: 600;
+        width: 100%;
+        margin-top: 10px;
+        text-decoration: none;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      a.btn.alt, button.btn.alt {
+        background: rgba(255,255,255,0.1);
+        color: #f4f7ff;
+      }
+      a.btn.green, button.btn.green { background: #2bb673; }
+      code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+      video { width: 100%; max-height: 280px; background: #000; border-radius: 12px; display: block; margin-top: 12px; }
+      pre { white-space: pre-wrap; font-size: 0.82em; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; min-height: 60px; margin: 0; }
+      .ok { color: #6ef3c5; }
+      .err { color: #ff8970; }
+      hr { border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0; }
     </style>
   </head>
   <body>
-    <h1>🔄 Reset de Permissões</h1>
+    <h1>🎥 Ativar a Câmara</h1>
+    <p class="sub">Esta página resolve o problema da câmara bloqueada no Scan My Sound.</p>
 
     <div class="card">
-      <p>Esta página tenta limpar o estado de permissões guardado pelo Chrome para este site.</p>
-      <button id="reset">🗑️ Limpar permissões e recarregar</button>
-      <button id="back" style="background:rgba(255,255,255,0.1);">↩️ Voltar para a app</button>
+      <p><strong>Testa aqui se já funciona:</strong></p>
+      <button id="testBtn" class="btn">📷 Testar acesso à câmara</button>
+      <video id="v" autoplay playsinline muted></video>
+      <pre id="result">—</pre>
     </div>
 
     <div class="card">
-      <h2>Se não funcionar automaticamente</h2>
-      <p>No Chrome do telemóvel, abre este URL e remove o site:</p>
-      <p><a style="color:#4f7cff; word-break:break-all;" href="chrome://settings/content/camera">chrome://settings/content/camera</a></p>
-      <p>Ou nas Definições do telemóvel:</p>
-      <ol>
-        <li>Aplicações → Chrome → Permissões → Câmara</li>
-        <li>Remove qualquer entrada deste site</li>
-        <li>Volta à app e tenta de novo</li>
-      </ol>
+      <h2 style="margin: 0 0 10px; font-size: 1.1em;">Se não aparecer o popup</h2>
+      <p style="font-size: 0.9em; margin: 0 0 8px;">A permissão ficou gravada como "negada" no Chrome. Tenta por esta ordem:</p>
+
+      <div class="step">
+        <div class="num">1</div>
+        <div class="step-body">
+          <strong>Limpar dados do site</strong><br />
+          <small>Abre as definições e remove os dados deste site.</small><br />
+          <a id="settingsLink" class="btn alt" href="chrome://settings/content/camera" target="_blank" rel="noreferrer">
+            🔧 Abrir Definições do Chrome
+          </a>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">2</div>
+        <div class="step-body">
+          <strong>Em "Definições de sites"</strong><br />
+          <small>Procura <code>scan-my-sound.vercel.app</code> na lista. Se estiver com Câmara marcada como "Bloqueada", toca e muda para "Permitir".</small>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">3</div>
+        <div class="step-body">
+          <strong>Volta a esta página e clica em "Testar acesso à câmara"</strong><br />
+          <small>O popup do Chrome deve aparecer para pedires permissão.</small>
+        </div>
+      </div>
     </div>
 
     <div class="card">
-      <h2>Estado</h2>
-      <pre id="log" style="white-space:pre-wrap; font-size:0.85em; background:rgba(0,0,0,0.3); padding:12px; border-radius:8px; min-height:60px;">—</pre>
+      <h2 style="margin: 0 0 10px; font-size: 1.1em;">Atalho rápido</h2>
+      <button id="cleanBtn" class="btn green">🧹 Limpar tudo e voltar a tentar</button>
+      <p style="font-size: 0.82em; opacity: 0.7; margin: 8px 0 0;">
+        Limpa caches, service workers e dados guardados deste site. Depois volta à app.
+      </p>
+    </div>
+
+    <div class="card">
+      <a id="backBtn" class="btn" href="./">↩️ Voltar para a app</a>
     </div>
 
     <script>
+      const $ = (id) => document.getElementById(id);
       const log = (msg, type = 'info') => {
-        const el = document.getElementById('log');
+        const el = $('result');
         const time = new Date().toLocaleTimeString();
-        const color = type === 'err' ? '#ff8970' : type === 'ok' ? '#6ef3c5' : '#fff';
+        const color = type === 'err' ? '#ff8970' : type === 'ok' ? '#6ef3c5' : '#f4f7ff';
         el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
       };
 
-      document.getElementById('back').addEventListener('click', () => {
-        window.location.href = './';
+      $('backBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = './scanner';
       });
 
-      document.getElementById('reset').addEventListener('click', async () => {
-        log('A tentar limpar permissões…');
-        try {
-          if (navigator.permissions && navigator.permissions.revoke) {
-            await navigator.permissions.revoke({ name: 'camera' }).catch(() => null);
-            log('✓ Permissões revogadas via API (suportado em alguns browsers)', 'ok');
-          } else {
-            log('⚠ API de revoke não disponível neste browser', 'err');
-          }
-        } catch (e) {
-          log('⚠ Erro: ' + e.message, 'err');
+      $('testBtn').addEventListener('click', async () => {
+        log('A pedir getUserMedia…');
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          log('✗ Este browser não suporta getUserMedia', 'err');
+          return;
         }
+        if (!window.isSecureContext) {
+          log('✗ Não está em secure context (HTTPS)', 'err');
+          return;
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+          log('✓ SUCESSO! ' + stream.getVideoTracks().length + ' track(s) de vídeo', 'ok');
+          $('v').srcObject = stream;
+          $('testBtn').textContent = '✓ Câmara a funcionar — voltar à app';
+          $('testBtn').onclick = () => { window.location.href = './scanner'; };
+        } catch (err) {
+          log('✗ ' + err.name + ': ' + err.message, 'err');
+          if (err.name === 'NotAllowedError') {
+            log('Permissão negada. Segue os passos abaixo para reverter.', 'err');
+          } else if (err.name === 'NotFoundError') {
+            log('Nenhuma câmara encontrada no dispositivo.', 'err');
+          } else if (err.name === 'NotReadableError') {
+            log('Câmara em uso por outra app (Zoom, Instagram, etc).', 'err');
+          }
+        }
+      });
 
+      $('cleanBtn').addEventListener('click', async () => {
+        log('A limpar tudo…');
         try { localStorage.clear(); log('✓ localStorage limpa', 'ok'); } catch (e) {}
         try { sessionStorage.clear(); log('✓ sessionStorage limpa', 'ok'); } catch (e) {}
         try {
@@ -75,7 +178,6 @@
             log('✓ ' + names.length + ' cache(s) apagada(s)', 'ok');
           }
         } catch (e) {}
-
         try {
           if (navigator.serviceWorker) {
             const regs = await navigator.serviceWorker.getRegistrations();
@@ -83,12 +185,13 @@
             log('✓ ' + regs.length + ' service worker(s) removido(s)', 'ok');
           }
         } catch (e) {}
-
-        log('A recarregar em 2 segundos…', 'ok');
-        setTimeout(() => {
-          window.location.href = './scanner?t=' + Date.now();
-        }, 2000);
+        log('A redirecionar…', 'ok');
+        setTimeout(() => { window.location.href = './scanner?t=' + Date.now(); }, 800);
       });
+
+      log('Página carregada.');
+      log('Secure context: ' + (window.isSecureContext ? 'sim' : 'NÃO'));
+      log('getUserMedia: ' + (navigator.mediaDevices?.getUserMedia ? 'disponível' : 'NÃO disponível'));
     </script>
   </body>
 </html>
