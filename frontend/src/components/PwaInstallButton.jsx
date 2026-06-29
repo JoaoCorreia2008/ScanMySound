@@ -6,7 +6,7 @@ import { usePwaInstall } from '../hooks/usePwaInstall'
 const STORAGE_KEY = 'scanmysound:pwa-dismissed'
 
 function detectPlatform() {
-  if (typeof navigator === 'undefined') return { os: 'unknown', browser: 'unknown' }
+  if (typeof navigator === 'undefined') return { os: 'unknown', browser: 'unknown', isIOS: false, isAndroid: false, isChrome: false, isEdge: false, isSafari: false }
   const ua = navigator.userAgent
   const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream
   const isAndroid = /Android/.test(ua)
@@ -38,7 +38,6 @@ function InstallInstructions({ onClose, platform }) {
     steps.push('Toca em "Adicionar" no canto superior direito')
   } else if (platform.isAndroid) {
     steps.push('Abre o menu do browser (⋮) e procura "Instalar app"')
-    steps.push('Ou vai a Definições → Apps → [browser] → Permissões → Câmara → Permitir')
   } else {
     steps.push('Na barra de endereço, clica no ícone de instalação (⬇ ou ⊕)')
     steps.push('Ou clica no menu ⋮ e escolhe "Instalar Scan my Sound"')
@@ -70,7 +69,7 @@ function InstallInstructions({ onClose, platform }) {
 }
 
 export default function PwaInstallButton() {
-  const { installable, installed, promptInstall } = usePwaInstall()
+  const { installed, promptInstall } = usePwaInstall()
   const platform = detectPlatform()
   const [showManual, setShowManual] = useState(false)
   const [dismissed, setDismissed] = useState(false)
@@ -88,12 +87,16 @@ export default function PwaInstallButton() {
     setShowManual(false)
   }
 
+  // Tenta SEMPRE o popup nativo primeiro
+  // Se o browser suportar e tiver o deferred prompt, mostra o popup nativo
+  // Se não, mostra as instruções manuais
   const handleInstall = async () => {
     const ok = await promptInstall()
     if (ok) {
       toast.success('A instalar Scan my Sound…')
     } else {
-      // Browser blocked the prompt. Show manual instructions.
+      // Browser não tem deferred prompt (não suporta, ou já foi consumido)
+      // Mostra as instruções manuais
       setShowManual(true)
     }
   }
@@ -102,46 +105,25 @@ export default function PwaInstallButton() {
 
   return (
     <AnimatePresence>
-      {installable ? (
-        <motion.button
-          key="pwa-install"
-          type="button"
-          className="pwa-install"
-          onClick={handleInstall}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 8 }}
-          transition={{ duration: 0.25 }}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Instalar app
-        </motion.button>
-      ) : null}
+      <motion.button
+        key="pwa-install"
+        type="button"
+        className="pwa-install"
+        onClick={handleInstall}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 8 }}
+        transition={{ duration: 0.25 }}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Instalar app
+      </motion.button>
 
       {showManual ? <InstallInstructions onClose={handleClose} platform={platform} /> : null}
-
-      {!installable && !showManual ? (
-        <motion.button
-          key="pwa-manual"
-          type="button"
-          className="pwa-install"
-          onClick={() => setShowManual(true)}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 8 }}
-          transition={{ duration: 0.25 }}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-            <line x1="12" y1="18" x2="12.01" y2="18" />
-          </svg>
-          Como instalar
-        </motion.button>
-      ) : null}
     </AnimatePresence>
   )
 }
