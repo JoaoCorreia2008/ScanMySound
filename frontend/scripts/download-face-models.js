@@ -1,14 +1,11 @@
-#!/usr/bin/env node
-/* eslint-disable no-console */
-// Descarrega os modelos leves do face-api.js para frontend/public/models.
-// Necessários apenas se quiseres usar a webcam real no dashboard.
-//
-// Uso: node scripts/download-face-models.js
-//      npm run models:download
+// ES module version (frontend package.json has "type": "module")
+import fs from 'node:fs'
+import path from 'node:path'
+import https from 'node:https'
+import { fileURLToPath } from 'node:url'
 
-const fs = require('fs')
-const path = require('path')
-const https = require('https')
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const BASE = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'
 const FILES = [
@@ -60,7 +57,7 @@ async function main() {
     console.log('\nAlguns modelos falharam. Tenta novamente ou descarrega manualmente de:')
     console.log('https://github.com/justadudewhohacks/face-api.js/tree/master/weights')
   } else {
-    console.log('\nModelos disponíveis em frontend/public/models/')
+    console.log('\nModelos disponiveis em frontend/public/models/')
   }
 }
 
