@@ -147,11 +147,32 @@ export default function EmotionScanner({ onScan }) {
         audio: false,
       })
 
+      const videoTracks = stream.getVideoTracks()
+      console.log('[scanner] Stream obtido:', {
+        tracks: videoTracks.length,
+        settings: videoTracks[0]?.getSettings(),
+      })
+
       streamRef.current = stream
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play().catch(() => null)
+        videoRef.current.muted = true
+        try {
+          await videoRef.current.play()
+          console.log('[scanner] Vídeo a reproduzir')
+        } catch (playError) {
+          console.warn('[scanner] play() falhou:', playError?.name, playError?.message)
+          // Em alguns browsers, é preciso interação do utilizador
+          // Tenta novamente após pequeno delay
+          setTimeout(() => {
+            if (videoRef.current) {
+              videoRef.current.play().catch(() => null)
+            }
+          }, 200)
+        }
+      } else {
+        console.warn('[scanner] videoRef.current é null')
       }
 
       try {
@@ -269,7 +290,13 @@ export default function EmotionScanner({ onScan }) {
       <div className="scanner-grid">
         <div className="video-frame">
           {showCamera ? (
-            <video ref={videoRef} autoPlay playsInline muted />
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              onLoadedMetadata={() => console.log('[scanner] Video metadata loaded', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight)}
+            />
           ) : (
             <div className="video-placeholder">
               <span className="live-dot" />
