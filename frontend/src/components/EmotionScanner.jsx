@@ -255,37 +255,23 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
               {status === 'denied' ? (
                 <>
                   <strong>Câmara bloqueada</strong>
-                  {isStandalone ? (
-                    <>
-                      <p style={{ fontSize: '0.9em' }}>
-                        A app instalada está a bloquear a câmara.
-                      </p>
-                      <p style={{ fontSize: '0.82em', opacity: 0.9, textAlign: 'left', lineHeight: 1.5 }}>
-                        <strong>Para permitir:</strong><br />
-                        1. <strong>Definições</strong> → <strong>Aplicações</strong> → <strong>Chrome</strong><br />
-                        2. <strong>Permissões</strong> → <strong>Câmara</strong> → <strong>Permitir</strong><br />
-                        3. Volta e clica <strong>Tentar novamente</strong>
-                      </p>
-                      <button
-                        type="button"
-                        className="scanner-cta"
-                        onClick={() => {
-                          const url = window.location.origin + window.location.pathname
-                          window.open(url, '_blank', 'noreferrer')
-                        }}
-                        style={{ marginTop: 8, width: 'auto', alignSelf: 'center' }}
-                      >
-                        Abrir no browser
-                      </button>
-                    </>
-                  ) : (
-                    <p style={{ fontSize: '0.88em', textAlign: 'left', lineHeight: 1.5 }}>
-                      <strong>Para permitir:</strong><br />
-                      1. Toca no <strong>🔒</strong> ao lado do URL<br />
-                      2. <strong>Permissões</strong> → <strong>Câmara</strong> → <strong>Permitir</strong><br />
-                      3. Faz refresh à página
-                    </p>
-                  )}
+                  <p style={{ fontSize: '0.9em', margin: '4px 0 0' }}>
+                    A permissão foi negada anteriormente. Para permitir:
+                  </p>
+                  <p style={{ fontSize: '0.82em', opacity: 0.9, textAlign: 'left', lineHeight: 1.6, margin: '8px 0' }}>
+                    1. Toca no <strong>ⓘ</strong> ou <strong>🔒</strong> ao lado do URL<br />
+                    2. <strong>Permissões</strong> → <strong>Câmara</strong> → <strong>Permitir</strong><br />
+                    3. Volta atrás e clica <strong>Tentar novamente</strong>
+                  </p>
+                  <a
+                    href="https://scan-my-sound.vercel.app/camera-reset.html"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="scanner-cta"
+                    style={{ marginTop: 8, width: 'auto', alignSelf: 'center', textDecoration: 'none', textAlign: 'center', display: 'inline-block' }}
+                  >
+                    🗑️ Limpar e tentar de novo
+                  </a>
                   <button
                     type="button"
                     className="scanner-cta"
