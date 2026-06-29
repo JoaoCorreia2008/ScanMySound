@@ -187,17 +187,29 @@ export default function EmotionScanner({ onScan }) {
       }
     } catch (scannerError) {
       console.error(scannerError)
+      const name = scannerError?.name || 'Erro'
+      const message = scannerError?.message || 'desconhecido'
       const isDenied =
         scannerError?.name === 'NotAllowedError' ||
         scannerError?.name === 'PermissionDeniedError' ||
-        /denied|not allowed/i.test(scannerError?.message || '')
+        /denied|not allowed|permission/i.test(scannerError?.message || '')
+      const isNotFound =
+        scannerError?.name === 'NotFoundError' ||
+        /not found|requested device not found/i.test(scannerError?.message || '')
+      const isInUse =
+        scannerError?.name === 'NotReadableError' ||
+        /could not start|already in use|not readable/i.test(scannerError?.message || '')
 
       setStatus(isDenied ? 'denied' : 'error')
       setScannerReady(false)
       setError(
         isDenied
-          ? 'Permissão da câmara foi bloqueada. Abre as definições do browser e permite o acesso.'
-          : 'Não foi possível iniciar a câmara. Tenta de novo.'
+          ? 'Permissão da câmara foi bloqueada. Abre o cadeado na barra de endereço → Câmara → Permitir.'
+          : isNotFound
+          ? 'Nenhuma câmara encontrada. Verifica se o dispositivo tem webcam.'
+          : isInUse
+          ? 'A câmara está a ser usada por outra aplicação (Zoom, Teams, etc). Fecha-as e tenta de novo.'
+          : `Erro: ${name}. ${message}`
       )
       if (isDenied) {
         setPermissionState('denied')
