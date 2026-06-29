@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as faceapi from 'face-api.js'
-import toast from 'react-hot-toast'
 import api from '../api/client'
 import { formatConfidence, pickPrimaryEmotion } from '../utils/emotions'
 import EmotionConfidenceBars from './EmotionConfidenceBars'
 import EmotionPicker from './EmotionPicker'
 
-const SCAN_INTERVAL = 2800
-
 function statusMessage(status) {
   return {
     idle: 'Pronto para detetar emoções.',
-    starting: 'A pedir permissão da câmara…',
-    ready: 'Câmara ativa. Emoções a serem analisadas em tempo real.',
+    starting: 'A iniciar a câmara…',
+    scanning: 'A analisar a tua cara…',
+    detected: 'Emoção detetada.',
     blocked: 'Permissão da câmara bloqueada.',
     denied: 'Câmara bloqueada — vê as instruções abaixo.',
     unsupported: 'Este browser não suporta webcam.',
@@ -28,12 +26,12 @@ async function loadFaceModels(modelPath) {
   ])
 }
 
-export default function EmotionScanner({ onScan }) {
+export default function EmotionScanner({ scanning, onScan, onScanStart, onManualSelect, manualEmotion }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const timerRef = useRef(null)
-  const sessionStartedRef = useRef(false)
-  const lastSentAtRef = useRef(0)
+  const scanStartTimeRef = useRef(0)
+  const scannerStartedRef = useRef(false)
   const currentEmotionRef = useRef('neutral')
 
   const [status, setStatus] = useState('idle')
@@ -69,7 +67,7 @@ export default function EmotionScanner({ onScan }) {
 
   const performScan = useCallback(async () => {
     if (!videoRef.current || videoRef.current.readyState < 2) {
-      return
+      return false
     }
 
     let detection
@@ -78,39 +76,23 @@ export default function EmotionScanner({ onScan }) {
         .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.45 }))
         .withFaceExpressions()
     } catch {
-      return
+      return false
     }
 
     if (!detection?.expressions) {
-      return
+      return false
     }
 
     const nextExpressions = detection.expressions
     const { emotion, confidence: nextConfidence } = pickPrimaryEmotion(nextExpressions)
-    const previousEmotion = currentEmotionRef.current
 
     setCurrentEmotion(emotion)
     currentEmotionRef.current = emotion
     setConfidence(nextConfidence)
     setExpressions(nextExpressions)
 
-    const shouldSend = Date.now() - lastSentAtRef.current > SCAN_INTERVAL || emotion !== previousEmotion
-    if (!shouldSend || nextConfidence < 0.34) {
-      return
-    }
-
-    lastSentAtRef.current = Date.now()
-
-    const payload = {
-      emotion,
-      confidence: nextConfidence,
-      source: 'webcam',
-      metadata: { expressions: nextExpressions },
-    }
-
-    api.post('/emotions', payload).catch(() => null)
-    onScan?.({ ...payload, expressions: nextExpressions })
-  }, [onScan])
+    return { emotion, confidence: nextConfidence, expressions: nextExpressions }
+  }, [])
 
   const stopScanner = useCallback(() => {
     if (timerRef.current) {
@@ -153,33 +135,46 @@ export default function EmotionScanner({ onScan }) {
         settings: videoTracks[0]?.getSettings(),
       })
 
-      // Guarda a stream — o useEffect abaixo vai ligá-la ao <video>
-      // quando o elemento estiver no DOM
       streamRef.current = stream
-
-      try {
-        await api.post('/sessions/start', {
-          device: navigator.userAgent,
-          userAgent: navigator.userAgent,
-        })
-        sessionStartedRef.current = true
-      } catch {
-        sessionStartedRef.current = false
-      }
-
-      setStatus('ready')
       setScannerReady(true)
-      toast.success('Câmara ligada.')
-      timerRef.current = window.setInterval(performScan, SCAN_INTERVAL)
+      setStatus('scanning')
+      scanStartTimeRef.current = Date.now()
+      scannerStartedRef.current = true
+      onScanStart?.()
 
-      if (navigator.permissions?.query) {
-        try {
-          const result = await navigator.permissions.query({ name: 'camera' })
-          setPermissionState(result.state)
-        } catch {
-          // ignore
+      // Loop de detecção: para quando confiança >= 0.5 OU passam 8 segundos
+      let detected = false
+      const tick = async () => {
+        if (detected) return
+        const result = await performScan()
+        if (result && result.confidence >= 0.5) {
+          detected = true
+          setStatus('detected')
+          try {
+            await api.post('/emotions', {
+              emotion: result.emotion,
+              confidence: result.confidence,
+              source: 'webcam',
+              metadata: { expressions: result.expressions },
+            })
+          } catch {
+            // ignore
+          }
+          onScan?.(result)
+          stopScanner()
+          return
+        }
+        const elapsed = Date.now() - scanStartTimeRef.current
+        if (elapsed >= 8000 && !detected) {
+          detected = true
+          setStatus('error')
+          setError('Não consegui detetar uma emoção clara. Tenta de novo ou escolhe manualmente abaixo.')
+          stopScanner()
+          return
         }
       }
+      tick()
+      timerRef.current = window.setInterval(tick, 1500)
     } catch (scannerError) {
       console.error(scannerError)
       const name = scannerError?.name || 'Erro'
@@ -210,23 +205,15 @@ export default function EmotionScanner({ onScan }) {
         setPermissionState('denied')
       }
     }
-  }, [performScan, permissionState])
+  }, [onScan, onScanStart, performScan, permissionState, stopScanner])
 
-  // Liga o stream ao elemento <video> quando o streamRef muda
-  // (e o elemento está no DOM porque showCamera é true neste momento)
+  // Liga o stream ao elemento <video> quando scannerReady fica true
   useEffect(() => {
-    if (!streamRef.current || !videoRef.current) {
-      console.log('[scanner] useEffect: sem stream ou video ref', { stream: !!streamRef.current, video: !!videoRef.current })
-      return
-    }
-
+    if (!streamRef.current || !videoRef.current) return
     const video = videoRef.current
     const stream = streamRef.current
-
-    console.log('[scanner] A ligar stream ao video')
     video.srcObject = stream
     video.muted = true
-
     const tryPlay = () => {
       video.play().then(() => {
         console.log('[scanner] Vídeo a reproduzir', video.videoWidth, 'x', video.videoHeight)
@@ -241,49 +228,27 @@ export default function EmotionScanner({ onScan }) {
   useEffect(() => {
     return () => {
       stopScanner()
-      if (sessionStartedRef.current) {
+      if (scannerStartedRef.current) {
         api.patch('/sessions/end').catch(() => null)
       }
     }
   }, [stopScanner])
 
-  const handleRequestCamera = useCallback(() => {
-    startScanner()
-  }, [startScanner])
-
-  const handleManualSelect = useCallback(
-    async (emotion) => {
-      const nextConfidence = 0.85
-      setCurrentEmotion(emotion)
-      currentEmotionRef.current = emotion
-      setConfidence(nextConfidence)
-      setExpressions({ [emotion]: nextConfidence })
-
-      const payload = {
-        emotion,
-        confidence: nextConfidence,
-        source: 'manual',
-        metadata: { source: 'manual-picker' },
+  // Inicia o scanner quando a prop `scanning` passa a true
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (scanning && !scannerReady) {
+        startScanner()
       }
-
-      try {
-        await api.post('/emotions', payload)
-      } catch {
-        // mantém UX funcional mesmo se a BD não responder
+      if (!scanning && scannerReady) {
+        stopScanner()
+        setScannerReady(false)
       }
+    })
+  }, [scanning, scannerReady, startScanner, stopScanner])
 
-      onScan?.({ ...payload, expressions: { [emotion]: nextConfidence } })
-    },
-    [onScan],
-  )
-
-  const showCamera = scannerReady && status !== 'denied' && status !== 'unsupported' && status !== 'error'
-  const showPermissionButton =
-    !scannerReady &&
-    status !== 'starting' &&
-    status !== 'denied' &&
-    status !== 'unsupported' &&
-    status !== 'error'
+  const showCamera = scannerReady
+  const showStartButton = !scanning && !scannerReady
 
   return (
     <section className="scanner-card glass-panel">
@@ -303,7 +268,6 @@ export default function EmotionScanner({ onScan }) {
               autoPlay
               playsInline
               muted
-              onLoadedMetadata={() => console.log('[scanner] Video metadata loaded', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight)}
             />
           ) : (
             <div className="video-placeholder">
@@ -321,10 +285,15 @@ export default function EmotionScanner({ onScan }) {
                   <strong>Browser incompatível</strong>
                   <p>Usa Chrome, Edge ou Safari para aceder à webcam.</p>
                 </>
+              ) : status === 'error' ? (
+                <>
+                  <strong>Não foi possível detetar</strong>
+                  <p>{error || 'Tenta de novo ou escolhe manualmente abaixo.'}</p>
+                </>
               ) : (
                 <>
                   <strong>Pronto para começar</strong>
-                  <p>Clica no botão abaixo para ligar a câmara e detetar a tua emoção.</p>
+                  <p>Clica no botão abaixo para detetar a tua emoção.</p>
                 </>
               )}
             </div>
@@ -339,23 +308,24 @@ export default function EmotionScanner({ onScan }) {
 
         <div className="scanner-copy">
           <div>
-            <p className="micro-label">Emoção detetada</p>
+            <p className="micro-label">Emoção atual</p>
             <h4>{currentEmotion}</h4>
             <p className="muted-text">
               {status === 'denied'
-                ? 'A app não consegue aceder à câmara. Podes usar o seletor manual em baixo para continuar.'
-                : 'A webcam deteta a tua emoção em tempo real. Podes também escolher manualmente abaixo.'}
+                ? 'A app não consegue aceder à câmara. Podes usar o seletor manual em baixo.'
+                : status === 'scanning'
+                ? 'Mantém a cara visível e bem iluminada.'
+                : 'A webcam vai detetar a tua emoção automaticamente.'}
             </p>
           </div>
 
-          {showPermissionButton ? (
+          {showStartButton ? (
             <button
               type="button"
               className="intro-cta scanner-cta"
-              onClick={handleRequestCamera}
-              disabled={status === 'starting'}
+              onClick={() => onScanStart?.()}
             >
-              {status === 'starting' ? 'A ligar…' : 'Permitir câmara e detetar'}
+              Permitir câmara e detetar
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
@@ -369,7 +339,7 @@ export default function EmotionScanner({ onScan }) {
         </div>
       </div>
 
-      <EmotionPicker selected={currentEmotion} onSelect={handleManualSelect} />
+      <EmotionPicker selected={manualEmotion || currentEmotion} onSelect={onManualSelect} />
     </section>
   )
 }
