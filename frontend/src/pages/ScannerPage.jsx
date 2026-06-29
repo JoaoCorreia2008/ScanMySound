@@ -52,7 +52,7 @@ export default function ScannerPage() {
         <button
           type="button"
           className="scanner-back"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/scan')}
           aria-label="Voltar"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
