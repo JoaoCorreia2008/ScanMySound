@@ -276,9 +276,23 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
                 <>
                   <strong>Câmara bloqueada</strong>
                   <p>
-                    Permissão foi negada. Abre as definições do browser → Permissões do site
-                    → Câmara → Permitir.
+                    1. Toca no 🔒 na barra de endereço<br />
+                    2. Permissões → Câmara → <strong>Permitir</strong><br />
+                    3. Volta aqui e clica em "Tentar novamente"
                   </p>
+                  <button
+                    type="button"
+                    className="scanner-cta"
+                    onClick={() => {
+                      setStatus('idle')
+                      setError('')
+                      setScannerReady(false)
+                      setPermissionState('prompt')
+                    }}
+                    style={{ marginTop: 12, width: 'auto', alignSelf: 'center' }}
+                  >
+                    Tentar novamente
+                  </button>
                 </>
               ) : status === 'unsupported' ? (
                 <>
@@ -289,6 +303,17 @@ export default function EmotionScanner({ scanning, onScan, onScanStart, onManual
                 <>
                   <strong>Não foi possível detetar</strong>
                   <p>{error || 'Tenta de novo ou escolhe manualmente abaixo.'}</p>
+                  <button
+                    type="button"
+                    className="scanner-cta"
+                    onClick={() => {
+                      setStatus('idle')
+                      setError('')
+                    }}
+                    style={{ marginTop: 12, width: 'auto', alignSelf: 'center' }}
+                  >
+                    Tentar novamente
+                  </button>
                 </>
               ) : (
                 <>
