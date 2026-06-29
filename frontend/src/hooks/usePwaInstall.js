@@ -53,9 +53,8 @@ export function usePwaInstall() {
     if (!deferredPrompt) return false
     deferredPrompt.prompt()
     const choice = await deferredPrompt.userChoice
-    if (choice.outcome === 'accepted') {
-      setInstallable(false)
-    }
+    // Limpa sempre o estado, quer aceite quer rejeite
+    setInstallable(false)
     setDeferredPrompt(null)
     return choice.outcome === 'accepted'
   }
