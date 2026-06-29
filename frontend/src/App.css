@@ -833,6 +833,11 @@
   width: 100%;
 }
 
+.scanner-cta {
+  width: auto;
+  align-self: flex-start;
+}
+
 :root[data-theme='dark'] .intro-cta,
 :root[data-theme='dark'] .scan-cta {
   background: #0f172a;

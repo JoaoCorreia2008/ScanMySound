@@ -10,7 +10,8 @@ const SCAN_INTERVAL = 2800
 
 function statusMessage(status) {
   return {
-    idle: 'A preparar a câmara e os modelos…',
+    idle: 'Pronto para detetar emoções.',
+    starting: 'A pedir permissão da câmara…',
     ready: 'Câmara ativa. Emoções a serem analisadas em tempo real.',
     blocked: 'Permissão da câmara bloqueada.',
     denied: 'Câmara bloqueada — vê as instruções abaixo.',
@@ -40,7 +41,7 @@ export default function EmotionScanner({ onScan }) {
   const [currentEmotion, setCurrentEmotion] = useState('neutral')
   const [confidence, setConfidence] = useState(0)
   const [expressions, setExpressions] = useState({})
-  const [scannerAvailable, setScannerAvailable] = useState(true)
+  const [scannerReady, setScannerReady] = useState(false)
   const [permissionState, setPermissionState] = useState('unknown')
 
   useEffect(() => {
@@ -54,8 +55,16 @@ export default function EmotionScanner({ onScan }) {
       .then((result) => {
         if (!active) return
         setPermissionState(result.state)
+        if (result.state === 'granted') {
+          setScannerReady(true)
+        }
         result.addEventListener('change', () => {
-          if (active) setPermissionState(result.state)
+          if (active) {
+            setPermissionState(result.state)
+            if (result.state === 'granted') {
+              setScannerReady(true)
+            }
+          }
         })
       })
       .catch(() => {
@@ -65,16 +74,6 @@ export default function EmotionScanner({ onScan }) {
       active = false
     }
   }, [])
-
-  useEffect(() => {
-    if (permissionState === 'denied') {
-      queueMicrotask(() => {
-        setScannerAvailable(false)
-        setStatus('denied')
-        setError('Permissão da câmara foi bloqueada. Vai às definições do browser para a permitir.')
-      })
-    }
-  }, [permissionState])
 
   const performScan = useCallback(async () => {
     if (!videoRef.current || videoRef.current.readyState < 2) {
@@ -121,90 +120,103 @@ export default function EmotionScanner({ onScan }) {
     onScan?.({ ...payload, expressions: nextExpressions })
   }, [onScan])
 
-  useEffect(() => {
-    if (permissionState === 'unknown' || permissionState === 'denied' || permissionState === 'unsupported') {
+  const stopScanner = useCallback(() => {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+  }, [])
+
+  const startScanner = useCallback(async () => {
+    if (permissionState === 'denied') {
+      setStatus('denied')
       return
     }
 
-    let mounted = true
-
-    async function init() {
-      try {
-        const modelPath = import.meta.env.VITE_FACE_API_MODELS_URL || '/models'
-
-        if (!navigator?.mediaDevices?.getUserMedia) {
-          throw new Error('getUserMedia indisponível neste browser.')
-        }
-
-        setStatus('idle')
-        await loadFaceModels(modelPath)
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: false,
-        })
-
-        if (!mounted) {
-          stream.getTracks().forEach((track) => track.stop())
-          return
-        }
-
-        streamRef.current = stream
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play().catch(() => null)
-        }
-
-        try {
-          await api.post('/sessions/start', {
-            device: navigator.userAgent,
-            userAgent: navigator.userAgent,
-          })
-          sessionStartedRef.current = true
-        } catch {
-          sessionStartedRef.current = false
-        }
-
-        setStatus('ready')
-        toast.success('Scanner da webcam iniciado.')
-        timerRef.current = window.setInterval(performScan, SCAN_INTERVAL)
-      } catch (scannerError) {
-        console.error(scannerError)
-        if (!mounted) return
-
-        const isDenied =
-          scannerError?.name === 'NotAllowedError' ||
-          scannerError?.name === 'PermissionDeniedError' ||
-          /denied|not allowed/i.test(scannerError?.message || '')
-
-        setScannerAvailable(false)
-        setStatus(isDenied ? 'denied' : 'unavailable')
-        setError(
-          isDenied
-            ? 'Permissão da câmara foi bloqueada. Abre as definições do browser e permite o acesso.'
-            : 'Scanner automático indisponível neste dispositivo. Usa o seletor manual abaixo.'
-        )
-
-        if (isDenied) {
-          setPermissionState('denied')
-        }
-      }
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setStatus('unsupported')
+      setError('Este browser não suporta webcam.')
+      return
     }
 
-    init()
+    setStatus('starting')
+    setError('')
 
-    return () => {
-      mounted = false
-      if (timerRef.current) window.clearInterval(timerRef.current)
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
+    try {
+      const modelPath = import.meta.env.VITE_FACE_API_MODELS_URL || '/models'
+      await loadFaceModels(modelPath)
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      })
+
+      streamRef.current = stream
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play().catch(() => null)
       }
+
+      try {
+        await api.post('/sessions/start', {
+          device: navigator.userAgent,
+          userAgent: navigator.userAgent,
+        })
+        sessionStartedRef.current = true
+      } catch {
+        sessionStartedRef.current = false
+      }
+
+      setStatus('ready')
+      setScannerReady(true)
+      toast.success('Câmara ligada.')
+      timerRef.current = window.setInterval(performScan, SCAN_INTERVAL)
+
+      if (navigator.permissions?.query) {
+        try {
+          const result = await navigator.permissions.query({ name: 'camera' })
+          setPermissionState(result.state)
+        } catch {
+          // ignore
+        }
+      }
+    } catch (scannerError) {
+      console.error(scannerError)
+      const isDenied =
+        scannerError?.name === 'NotAllowedError' ||
+        scannerError?.name === 'PermissionDeniedError' ||
+        /denied|not allowed/i.test(scannerError?.message || '')
+
+      setStatus(isDenied ? 'denied' : 'error')
+      setScannerReady(false)
+      setError(
+        isDenied
+          ? 'Permissão da câmara foi bloqueada. Abre as definições do browser e permite o acesso.'
+          : 'Não foi possível iniciar a câmara. Tenta de novo.'
+      )
+      if (isDenied) {
+        setPermissionState('denied')
+      }
+    }
+  }, [performScan, permissionState])
+
+  useEffect(() => {
+    return () => {
+      stopScanner()
       if (sessionStartedRef.current) {
         api.patch('/sessions/end').catch(() => null)
       }
     }
-  }, [permissionState, performScan])
+  }, [stopScanner])
+
+  const handleRequestCamera = useCallback(() => {
+    startScanner()
+  }, [startScanner])
 
   const handleManualSelect = useCallback(
     async (emotion) => {
@@ -232,7 +244,12 @@ export default function EmotionScanner({ onScan }) {
     [onScan],
   )
 
-  const showCamera = scannerAvailable && status !== 'denied' && status !== 'unsupported'
+  const showCamera = scannerReady && status !== 'denied' && status !== 'unsupported' && status !== 'error'
+  const showPermissionButton =
+    !scannerReady &&
+    permissionState !== 'denied' &&
+    permissionState !== 'unsupported' &&
+    status !== 'starting'
 
   return (
     <section className="scanner-card glass-panel">
@@ -266,8 +283,8 @@ export default function EmotionScanner({ onScan }) {
                 </>
               ) : (
                 <>
-                  <strong>Scanner indisponível</strong>
-                  <p>Usa o seletor manual abaixo para testar a app.</p>
+                  <strong>Pronto para começar</strong>
+                  <p>Clica no botão abaixo para ligar a câmara e detetar a tua emoção.</p>
                 </>
               )}
             </div>
@@ -287,9 +304,24 @@ export default function EmotionScanner({ onScan }) {
             <p className="muted-text">
               {status === 'denied'
                 ? 'A app não consegue aceder à câmara. Podes usar o seletor manual em baixo para continuar.'
-                : 'As barras atualizam em tempo real. Se a webcam não estiver disponível, podes escolher a emoção manualmente.'}
+                : 'A webcam deteta a tua emoção em tempo real. Podes também escolher manualmente abaixo.'}
             </p>
           </div>
+
+          {showPermissionButton ? (
+            <button
+              type="button"
+              className="intro-cta scanner-cta"
+              onClick={handleRequestCamera}
+              disabled={status === 'starting'}
+            >
+              {status === 'starting' ? 'A ligar…' : 'Permitir câmara e detetar'}
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </button>
+          ) : null}
 
           <EmotionConfidenceBars expressions={expressions} />
 
