@@ -42,6 +42,7 @@ export default function EmotionScanner({ onScan }) {
   const [confidence, setConfidence] = useState(0)
   const [expressions, setExpressions] = useState({})
   const [scannerReady, setScannerReady] = useState(false)
+  const [pendingStream, setPendingStream] = useState(null)
   const [permissionState, setPermissionState] = useState('unknown')
 
   useEffect(() => {
@@ -153,27 +154,10 @@ export default function EmotionScanner({ onScan }) {
         settings: videoTracks[0]?.getSettings(),
       })
 
+      // Guarda a stream — o useEffect abaixo vai ligá-la ao <video>
+      // quando o elemento estiver no DOM
       streamRef.current = stream
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.muted = true
-        try {
-          await videoRef.current.play()
-          console.log('[scanner] Vídeo a reproduzir')
-        } catch (playError) {
-          console.warn('[scanner] play() falhou:', playError?.name, playError?.message)
-          // Em alguns browsers, é preciso interação do utilizador
-          // Tenta novamente após pequeno delay
-          setTimeout(() => {
-            if (videoRef.current) {
-              videoRef.current.play().catch(() => null)
-            }
-          }, 200)
-        }
-      } else {
-        console.warn('[scanner] videoRef.current é null')
-      }
+      setPendingStream(stream)
 
       try {
         await api.post('/sessions/start', {
@@ -230,12 +214,35 @@ export default function EmotionScanner({ onScan }) {
     }
   }, [performScan, permissionState])
 
+  // Liga o stream ao elemento <video> quando o elemento existe
+  // (resolve o problema de o stream chegar antes do React criar o <video>)
+  useEffect(() => {
+    if (!pendingStream || !videoRef.current) return
+
+    const video = videoRef.current
+    video.srcObject = pendingStream
+    video.muted = true
+
+    const tryPlay = () => {
+      video.play().then(() => {
+        console.log('[scanner] Vídeo a reproduzir', video.videoWidth, 'x', video.videoHeight)
+      }).catch((err) => {
+        console.warn('[scanner] play() falhou:', err?.name, err?.message)
+        setTimeout(tryPlay, 200)
+      })
+    }
+    tryPlay()
+
+    setPendingStream(null)
+  }, [pendingStream])
+
   useEffect(() => {
     return () => {
       stopScanner()
       if (sessionStartedRef.current) {
         api.patch('/sessions/end').catch(() => null)
       }
+      setPendingStream(null)
     }
   }, [stopScanner])
 
