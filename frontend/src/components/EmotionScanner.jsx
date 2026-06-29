@@ -55,16 +55,8 @@ export default function EmotionScanner({ onScan }) {
       .then((result) => {
         if (!active) return
         setPermissionState(result.state)
-        if (result.state === 'granted') {
-          setScannerReady(true)
-        }
         result.addEventListener('change', () => {
-          if (active) {
-            setPermissionState(result.state)
-            if (result.state === 'granted') {
-              setScannerReady(true)
-            }
-          }
+          if (active) setPermissionState(result.state)
         })
       })
       .catch(() => {
@@ -259,9 +251,10 @@ export default function EmotionScanner({ onScan }) {
   const showCamera = scannerReady && status !== 'denied' && status !== 'unsupported' && status !== 'error'
   const showPermissionButton =
     !scannerReady &&
-    permissionState !== 'denied' &&
-    permissionState !== 'unsupported' &&
-    status !== 'starting'
+    status !== 'starting' &&
+    status !== 'denied' &&
+    status !== 'unsupported' &&
+    status !== 'error'
 
   return (
     <section className="scanner-card glass-panel">
